@@ -35,31 +35,32 @@ class ControllerApi extends Controller
     }
     // New user registration function
     public function register(Request $request)
-    {
-        $request->validate([
-            'name' => 'required',
-            'email' => 'required|email|unique:users',
-            'password' => 'required|min:6',
-            'user_type' => 'required|in:ADMIN,EDITOR,VIEWER',
-        ]);
-        
-        $user = User::where('email', $request->email)->first();
+{
+    $request->validate([
+        'name' => 'required',
+        'email' => 'required|email|unique:users',
+        'password' => 'required|min:6',
+        'user_type' => 'required|in:ADMIN,EDITOR,VIEWER',
+    ]);
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json([
-                'message' => 'Invalid credentials'
-            ], 401);
-        }
+    // Create the user
+    $user = User::create([
+        'name' => $request->name,
+        'email' => $request->email,
+        'password' => Hash::make($request->password),
+        'user_type' => $request->user_type
+    ]);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
-        
-        return response()->json([
-            'status' => 'success',
-            'message' => 'User registered successfully',
-            'user' => $user,
-            'token' => $token
-        ], 201);
-    }
+    // Generate token for the new user
+    $token = $user->createToken('authToken')->plainTextToken;
+
+    return response()->json([
+        'status' => 'success',
+        'message' => 'User registered successfully',
+        'user' => $user,
+        'token' => $token
+    ], 201);
+}
     
 
     public function login(Request $request)
@@ -112,10 +113,27 @@ class ControllerApi extends Controller
             'data' => $users  
         ], status: 200);
     }
+    // Get a specific user
+    public function getUser(string $id_profile)
+    {   
+        $user = User::find($id_profile);
+        if ($user) {
+            return response()->json(data: [
+                'status' => 'success',
+                'message' => 'User found successfully',
+                'data' => $user
+            ], status: 200);
+        } else {
+            return response()->json(data: [
+                'status' => 'fail',
+                'message' => 'User not found'
+            ], status: 404);
+        }
+    }
     // Delete a user 
-    public function deleteUser( int $id)
+    public function deleteUser(string $id_profile)
     {
-        $user = User::find($id);
+        $user = User::find($id_profile);
         if ($user) {
             $user->delete();
             return response()->json(data: [
@@ -131,30 +149,32 @@ class ControllerApi extends Controller
     }
     
     // Edit a user
-    public function editUser(Request $request, $id)
+    public function editUser(Request $request, string $id_profile)
     {   
         // Check user if exists
-        $user = User::find($id);
+        $user = User::find($id_profile);
         if ($user) {
-            // $request retrieves the data from the request
-            // $request->all() retrieves all the data from the request
-            // $request->input('name') retrieves the name from the request
+            // Validate request data
             $validator = Validator::make($request->all(), rules:[
                 'name' => 'required',
-                'email' => 'required',
-                'password' => 'required',
+                'email' => 'required|email|unique:users,email,'.$id_profile.',id_profile',
+                'user_type' => 'sometimes|required|in:ADMIN,EDITOR,VIEWER'
             ]);
+
             if ($validator->fails()) {
                 return response()->json(data: [
                     'status' => 'fail',
                     'message' => $validator->errors()
                 ], status: 400);
             }
-            $data = $request->all();
+
+            $data = $request->only(['name', 'email', 'user_type']);
             $user->update($data);
+            
             return response()->json(data: [
                 'status' => 'success',
-                'message' => 'User updated successfully'
+                'message' => 'User updated successfully',
+                'user' => $user
             ], status: 200);
         } else {
             return response()->json(data: [
@@ -163,90 +183,5 @@ class ControllerApi extends Controller
             ], status: 404);
         }
     }
-    // public function createCategory(Request $request){
-    //     $validator = Validator::make(data: $request->all() , rules:[
-    //         'name' => 'required'
-    //     ]);
-    //     if ($validator->fails()){
-    //         return response()->json(data:[
-    //             'status' => 'fail',
-    //             'message'=> $validator->errors()
-    //         ], status:400);
-    //     }
-    //     $data['name'] = $request->name;
-    //     $data['slug'] = Str::slug($data['name']);
-    //     $imagePath = $this->uploadImage($request , 'image');
-    //     $data['image'] = isset($imagePath) ? $imagePath : '';
-    //     ProductCategory::create($data);
-    //     return response()->json(data:[
-    //         'status'=> 'success',
-    //        'message'=> 'Category created successfully'
-    //     ],status:200);
-    // }
 
-    // public function getAllCategories(){
-    //     // to retrieve all the categories from the database
-    //     $categories = ProductCategory::get();
-    //     // to check if the categories are empty
-    //     // if the categories are empty, return a 404 error
-    //     // if the categories are not empty, return a 200 success
-    //     if ($categories->isEmpty()){
-    //         return response()->json(data:[
-    //             'status'=> 'fail',
-    //             'message'=> 'No category found'
-    //         ], status: 404);
-    //     }
-    //     return response()->json(data:[
-    //         'status'=> 'success',
-    //         'count' => count($categories), 
-    //         'message'=> 'All categories',
-    //         'data'=> $categories
-    //     ], status: 200);
-    // }
-    // public function editCategory(int $categoryId , Request $request){
-    //     $category = ProductCategory::find($categoryId);
-    //     if (!$category){
-    //         return response()->json(data:[
-    //             'status' => 'fail',
-    //             'message' => 'Category not found with this id'
-    //         ], status:404);
-    //     }
-    //     $validator = Validator::make(data: $request->all(), rules:[
-    //         'name' => 'required'
-    //     ]);
-    //     if ($validator->fails()){
-    //         return response()->json(data: [
-    //             'status' => 'fail',
-    //             'message' => $validator->errors()
-    //         ]);
-    //     }
-    //     $data['name'] = $request->name;
-    //     $data['slug'] = Str::slug($data['name']);
-    //     $imagePath = $this->uploadImage($request , 'image');
-    //     $data['image'] = isset($imagePath) ? $imagePath : '';
-    //     $category->update($data);
-    //     return response()->json(data:[
-    //         'status'=> 'success',
-    //         'message'=> 'Category updated successfully'
-    //     ], status: 200);
-    // }
-
-    // public function deleteCategory(int $categoryId , Request $request){
-    //     $category = ProductCategory::find($categoryId);
-    //     if (!$category){
-    //         return response()->json([
-    //             "status"  => "fail",
-    //             "message" => "Category not founded !"
-    //         ],404);
-    //     }
-    //     $validator = Validator::make(data: $request->all() , rules:[
-    //         "name" => "required",
-    //     ]);
-    //     if ($validator->fails()){
-    //         return response()->json([
-    //             "status" => "fail",
-    //             "message"=>$validator->errors(),
-    //         ]);
-    //     }
-    // }
 }

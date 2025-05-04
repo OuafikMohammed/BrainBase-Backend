@@ -35,18 +35,18 @@ trait FileuploadTrait{  // Creates a reusable piece of code that can be added to
             // Returns the path where the file was saved
             return $path.'/'.$imageName;
         }   
-
-        function deleteImage($path){
-            // Checks if the file exists at the given path
-            if (file_exists(public_path($path))){
-                // Deletes the file
-                unlink(public_path($path));
-            }
-            // Returns a success message
-            return response()->json(data: [
-                'status' => 'success',
-                'message' => 'File deleted successfully'
-            ], status: 200);
-        }
     }
+    function deleteImage($path){
+        // Checks if the file exists at the given path
+        if (file_exists(public_path($path))){
+            // Deletes the file
+            unlink(public_path($path));
+        }
+        // Returns a success message
+        return response()->json(data: [
+            'status' => 'success',
+            'message' => 'File deleted successfully'
+        ], status: 200);
+    }
+    
 }
