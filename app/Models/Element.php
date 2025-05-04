@@ -4,11 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Ramsey\Uuid\Uuid;
 
 class Element extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $primaryKey = 'id_element';
     public $incrementing = false;
@@ -20,7 +21,16 @@ class Element extends Model
         'id_vault',
         'id_parent',
         'content_html',
-        'position'
+        'position',
+        'last_edited',
+        'tags',
+        'versions'
+    ];
+
+    protected $casts = [
+        'tags' => 'array',
+        'versions' => 'array',
+        'last_edited' => 'datetime'
     ];
 
     // Generate UUID on creation

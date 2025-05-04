@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Ramsey\Uuid\Uuid;
 
 class Vault extends Model
 {
-    use HasFactory;
+    use SoftDeletes;
 
     protected $primaryKey = 'id_vault';
     public $incrementing = false;
@@ -17,10 +17,14 @@ class Vault extends Model
     protected $fillable = [
         'name',
         'description',
-        'id_profile'
+        'id_profile',
+        'settings'
     ];
 
-    // Generate UUID on creation
+    protected $casts = [
+        'settings' => 'array'
+    ];
+
     protected static function boot()
     {
         parent::boot();
@@ -30,15 +34,21 @@ class Vault extends Model
         });
     }
 
-    // Relationship: A vault belongs to a user
-    public function user()
+    // Relationship with user profile
+    public function profile()
     {
-        return $this->belongsTo(User::class, 'id_profile', 'id_profile');
+        return $this->belongsTo(User::class, 'id_profile');
     }
 
-    // Relationship: A vault has many elements
+    // Relationship with elements (files/folders)
     public function elements()
     {
-        return $this->hasMany(Element::class, 'id_vault', 'id_vault');
+        return $this->hasMany(Element::class, 'id_vault');
+    }
+
+    // Get the root elements (files/folders with no parent)
+    public function getRootElements()
+    {
+        return $this->elements()->whereNull('id_parent')->get();
     }
 }

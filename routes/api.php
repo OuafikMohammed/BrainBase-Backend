@@ -46,5 +46,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Vault routes
     Route::apiResource('vaults', VaultController::class);
+
+    // Element routes
     Route::apiResource('vaults.elements', ElementController::class)->shallow();
+    Route::put('elements/{elementId}/content', [ElementController::class, 'saveContent']);
 });
