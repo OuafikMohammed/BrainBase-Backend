@@ -76,7 +76,6 @@ return [
 
     'middleware' => [
         'verify_csrf_token' => Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
-        'encrypt_cookies' => App\Http\Middleware\EncryptCookies::class,
     ],
 
     'prefix' => 'sanctum',

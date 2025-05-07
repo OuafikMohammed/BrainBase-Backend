@@ -53,7 +53,8 @@ class ElementController extends Controller
             'name' => 'sometimes|required|string|max:255',
             'content_html' => 'nullable|string',
             'id_parent' => 'nullable|string|exists:elements,id_element',
-            'tags' => 'nullable|array'
+            'tags' => 'nullable|array',
+            'tags.*' => 'string|max:50' // Ensure each tag is a string and not too long
         ]);
 
         if ($validator->fails()) {
@@ -73,7 +74,18 @@ class ElementController extends Controller
             $element->versions = $versions;
         }
 
-        $element->fill($request->all());
+        // Handle tags update
+        if ($request->has('tags')) {
+            // Ensure tags are unique and trimmed
+            $tags = collect($request->tags)
+                ->map(fn($tag) => trim($tag))
+                ->unique()
+                ->values()
+                ->all();
+            $element->tags = $tags;
+        }
+
+        $element->fill($request->except('tags')); // Exclude tags as we handled them separately
         $element->last_edited = now();
         $element->save();
 
@@ -118,6 +130,75 @@ class ElementController extends Controller
         $versions[] = $newVersion;
 
         $element->content_html = $request->content;
+        $element->versions = $versions;
+        $element->last_edited = now();
+        $element->save();
+
+        return response()->json($element);
+    }
+
+    // Search elements by tags
+    public function searchByTags(Request $request, $vaultId)
+    {
+        $validator = Validator::make($request->all(), [
+            'tags' => 'required|array',
+            'tags.*' => 'string|max:50'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        // Clean and normalize tags
+        $searchTags = collect($request->tags)
+            ->map(fn($tag) => trim($tag))
+            ->filter()
+            ->values()
+            ->all();
+
+        $elements = Element::where('id_vault', $vaultId)
+            ->where(function($query) use ($searchTags) {
+                foreach($searchTags as $tag) {
+                    $query->whereJsonContains('tags', $tag);
+                }
+            })
+            ->get();
+
+        return response()->json($elements);
+    }
+
+    // Restore a specific version
+    public function restoreVersion(Request $request, $elementId)
+    {
+        $validator = Validator::make($request->all(), [
+            'versionId' => 'required|integer'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $element = Element::findOrFail($elementId);
+        
+        // Find the version to restore
+        $versionToRestore = collect($element->versions)->firstWhere('id', $request->versionId);
+        
+        if (!$versionToRestore) {
+            return response()->json(['error' => 'Version not found'], 404);
+        }
+
+        // Create a new version from current content
+        $currentVersion = [
+            'id' => count($element->versions) + 1,
+            'date' => now()->toISOString(),
+            'content' => $element->content_html
+        ];
+
+        // Update element with old version content and add current content as new version
+        $versions = $element->versions;
+        $versions[] = $currentVersion;
+        
+        $element->content_html = $versionToRestore['content'];
         $element->versions = $versions;
         $element->last_edited = now();
         $element->save();
