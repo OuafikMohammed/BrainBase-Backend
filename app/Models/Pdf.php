@@ -3,25 +3,28 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Ramsey\Uuid\Uuid;
 
 class Pdf extends Model
 {
+use SoftDeletes;
+    protected $primaryKey = 'id';         
+    public $incrementing = false;         
+    protected $keyType = 'string'; 
     protected $fillable = [
-        'title',
-        'description',
-        'category',
-        'file_path',
-        'size',
-        'uploaded_by'
+        'id', 'title', 'description', 'category', 'file_path', 'size', 'uploaded_by'
     ];
+    protected static function boot()
+    {
+        parent::boot();
 
-    protected $casts = [
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime'
-    ];
-
+        static::creating(function ($model) {
+            $model->id = Uuid::uuid4()->toString();
+        });
+    }
     public function collections(): BelongsToMany
     {
         return $this->belongsToMany(Collection::class);
@@ -31,28 +34,19 @@ class Pdf extends Model
     {
         return $this->belongsTo(User::class, 'uploaded_by', 'id_profile');
     }
-
-    public function canBeAccessedBy(User $user): bool
+    public function canBeAccessedBy($user): bool
     {
-        // Check if user uploaded the PDF
-        if ($this->uploaded_by === $user->id_profile) {
-            return true;
-        }
-
-        // Check if PDF is in any collections shared with user
-        foreach ($this->collections as $collection) {
-            if ($collection->canBeAccessedBy($user)) {
-                return true;
-            }
-        }
-
-        // Admins can access all PDFs
-        return $user->user_type === 'ADMIN';
+        return true; // 👈 Allow all users to view any PDF
     }
-
-    public function canBeModifiedBy(User $user): bool
+    //We must check it later
+    public function canBeModifiedBy($user): bool
     {
         return $user->user_type === 'ADMIN' || 
                ($user->user_type === 'EDITOR' && $this->uploaded_by === $user->id_profile);
+    }
+
+    public function canBeDeletedBy(User $user): bool
+    {
+        return $this->canBeModifiedBy($user); // Same logic
     }
 }

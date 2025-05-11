@@ -49,4 +49,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Vault::class, 'id_profile', 'id_profile');
     }
+
+    // public function profile()
+    // {
+    //     return $this->belongsTo(User::class, 'id_profile');
+    // }
 }

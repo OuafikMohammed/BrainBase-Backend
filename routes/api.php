@@ -52,15 +52,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/vaults/{vaultId}/search-tags', [ElementController::class, 'searchByTags'])->middleware('auth:sanctum');
     Route::post('/elements/{elementId}/restore-version', [ElementController::class, 'restoreVersion'])->middleware('auth:sanctum');
 
-    // PDF routes
+    // Protected PDF routes
     Route::get('/pdfs', [PdfController::class, 'index']);
     Route::post('/pdfs', [PdfController::class, 'store']);
     Route::get('/pdfs/{id}', [PdfController::class, 'show']);
     Route::put('/pdfs/{id}', [PdfController::class, 'update']);
     Route::delete('/pdfs/{id}', [PdfController::class, 'destroy']);
     Route::get('/pdfs/{id}/download', [PdfController::class, 'download']);
-    // Route::post('/pdfs/{id}/collections', [PdfController::class, 'addToCollection']);
-    // Route::delete('/pdfs/{id}/collections', [PdfController::class, 'removeFromCollection']);
+    Route::post('/collections/{collectionId}/pdfs/{pdfId}', [CollectionController::class, 'addPdf']);
 
     // Collection routes
     Route::get('/collections', [CollectionController::class, 'index']);

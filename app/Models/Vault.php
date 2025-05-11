@@ -35,6 +35,9 @@ class Vault extends Model
     }
 
     // Relationship with user profile
+    // We canuse 'profile' as a name for the relationship
+    // because it is a common name in the context of a vault
+    // we are not obliged to use 'users'
     public function profile()
     {
         return $this->belongsTo(User::class, 'id_profile');

@@ -19,122 +19,128 @@ class PdfController extends Controller
 
     public function index(Request $request)
     {
-        $filters = $request->only(['title', 'category', 'date_from', 'date_to']);
-        return $this->pdfService->search($filters);
+        try {
+            $filters = $request->only(['title', 'category', 'date_from', 'date_to']);
+            $pdfs = $this->pdfService->search($filters);
+            return response()->json($pdfs);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to fetch PDFs', 'message' => $e->getMessage()], 500);
+        }
     }
 
     public function store(Request $request)
     {
-        $request->validate([
-            'file' => 'required|file|mimetypes:application/pdf|max:10240',
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'category' => 'nullable|string',
-            'collections' => 'nullable|array',
-            'collections.*' => 'exists:collections,id'
-        ]);
+        try {
+            $request->validate([
+                'file' => 'required|file|mimetypes:application/pdf|max:10240',
+                'title' => 'required|string|max:255',
+                'description' => 'nullable|string',
+                'category' => 'nullable|string',
+                'collections' => 'nullable|array',
+                'collections.*' => 'exists:collections,id'
+            ]);
 
-        return $this->pdfService->uploadPdf(
-            $request->file('file'),
-            $request->only(['title', 'description', 'category', 'collections']),
-            Auth::user()
-        );
-    }
+            $pdf = $this->pdfService->uploadPdf(
+                $request->file('file'),
+                $request->only(['title', 'description', 'category', 'collections']),
+                Auth::user()
+            );
 
-    public function show($id)
-    {
-        /** @var Pdf $pdf */
-        $pdf = Pdf::query()->findOrFail($id);
-        
-        if (!$pdf->canBeAccessedBy(Auth::user())) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+            return response()->json([
+                'message' => 'PDF uploaded successfully',
+                'pdf' => $pdf
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Upload failed',
+                'message' => $e->getMessage()
+            ], 400);
         }
-
-        return response()->json([
-            'pdf' => $pdf,
-            'url' => $this->pdfService->getPdfUrl($pdf)
-        ]);
     }
+
+    // public function show($id)
+    // {
+    //     try {
+    //         /** @var Pdf $pdf */
+    //         $pdf = Pdf::findOrFail($id);
+            
+    //         if (!$pdf->canBeAccessedBy(Auth::user())) {
+    //             return response()->json(['error' => 'Unauthorized access'], 403);
+    //         }
+
+    //         return response()->json([
+    //             'pdf' => $pdf,
+    //             'url' => $this->pdfService->getPdfUrl($pdf)
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         return response()->json(['error' => 'PDF not found'], 404);
+    //     }
+    // }
 
     public function update(Request $request, $id)
     {
-        $request->validate([
-            'title' => 'string|max:255',
-            'description' => 'nullable|string',
-            'category' => 'nullable|string'
-        ]);
+        try {
+            $request->validate([
+                'title' => 'required|string|max:255',
+                'description' => 'nullable|string',
+                'category' => 'nullable|string'
+            ]);
 
-        /** @var Pdf $pdf */
-        $pdf = Pdf::query()->findOrFail($id);
-        
-        if (!$pdf->canBeModifiedBy(Auth::user())) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+            /** @var Pdf $pdf */
+            $pdf = Pdf::findOrFail($id);
+
+            if (!$pdf->canBeModifiedBy(Auth::user())) {
+                return response()->json(['error' => 'Unauthorized to modify this PDF'], 403);
+            }
+
+            $pdf->update($request->only(['title', 'description', 'category']));
+
+            return response()->json([
+                'message' => 'PDF updated successfully',
+                'pdf' => $pdf
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to update PDF',
+                'message' => $e->getMessage()
+            ], 400);
         }
-
-        $pdf->update($request->only(['title', 'description', 'category']));
-        return response()->json($pdf);
     }
 
     public function destroy($id)
     {
-        /** @var Pdf $pdf */
-        $pdf = Pdf::query()->findOrFail($id);
-        
-        if (!$pdf->canBeModifiedBy(Auth::user())) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+        try {
+            /** @var Pdf $pdf */
+            $pdf = Pdf::findOrFail($id);
 
-        $this->pdfService->deletePdf($pdf);
-        return response()->noContent();
+            if (!$pdf->canBeDeletedBy(Auth::user())) {
+                return response()->json(['error' => 'Unauthorized to delete this PDF'], 403);
+            }
+
+            $this->pdfService->deletePdf($pdf);
+
+            return response()->json(['message' => 'PDF deleted successfully']);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to delete PDF',
+                'message' => $e->getMessage()
+            ], 400);
+        }
     }
 
     public function download($id)
-    {
+{
+    try {
         /** @var Pdf $pdf */
-        $pdf = Pdf::query()->findOrFail($id);
-        
+        $pdf = Pdf::findOrFail($id);
+
         if (!$pdf->canBeAccessedBy(Auth::user())) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+            return response()->json(['error' => 'Unauthorized to download this PDF'], 403);
         }
 
         return $this->pdfService->downloadPdf($pdf);
+    } catch (\Exception $e) {
+        return response()->json(['error' => 'Failed to download PDF', 'message' => $e->getMessage()], 404);
     }
-
-    public function addToCollection(Request $request, $id)
-    {
-        $request->validate([
-            'collection_id' => 'required|exists:collections,id'
-        ]);
-
-        /** @var Pdf $pdf */
-        $pdf = Pdf::query()->findOrFail($id);
-        /** @var Collection $collection */
-        $collection = Collection::query()->findOrFail($request->collection_id);
-
-        if (!$collection->canAddPdfs(Auth::user())) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
-        $pdf->collections()->attach($collection->id);
-        return response()->noContent();
-    }
-
-    public function removeFromCollection(Request $request, $id)
-    {
-        $request->validate([
-            'collection_id' => 'required|exists:collections,id'
-        ]);
-
-        /** @var Pdf $pdf */
-        $pdf = Pdf::query()->findOrFail($id);
-        /** @var Collection $collection */
-        $collection = Collection::query()->findOrFail($request->collection_id);
-
-        if (!$collection->canBeModifiedBy(Auth::user())) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
-        $pdf->collections()->detach($collection->id);
-        return response()->noContent();
-    }
+}
 }

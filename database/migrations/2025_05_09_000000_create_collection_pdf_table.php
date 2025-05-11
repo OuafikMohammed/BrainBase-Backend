@@ -1,4 +1,5 @@
 <?php
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -9,19 +10,22 @@ class CreateCollectionPdfTable extends Migration
     {
         Schema::create('collection_pdf', function (Blueprint $table) {
             $table->uuid('collection_id');
+            $table->uuid('pdf_id');
+            $table->timestamps();
+
+            // Foreign keys
             $table->foreign('collection_id')
                   ->references('id')
                   ->on('collections')
                   ->onDelete('cascade');
-                  
-            $table->foreignId('pdf_id');
+
             $table->foreign('pdf_id')
                   ->references('id')
                   ->on('pdfs')
                   ->onDelete('cascade');
-                  
+
+            // Composite Primary Key
             $table->primary(['collection_id', 'pdf_id']);
-            $table->timestamps();
         });
     }
 
