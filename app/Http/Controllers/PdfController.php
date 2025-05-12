@@ -56,26 +56,40 @@ class PdfController extends Controller
                 'message' => $e->getMessage()
             ], 400);
         }
+    }    public function show($id)
+    {
+        try {
+            /** @var Pdf $pdf */
+            $pdf = Pdf::findOrFail($id);
+            
+            if (!$pdf->canBeAccessedBy(Auth::user())) {
+                return response()->json(['error' => 'Unauthorized access'], 403);
+            }
+
+            return response()->json([
+                'pdf' => $pdf,
+                'url' => $this->pdfService->getPdfUrl($pdf)
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'PDF not found'], 404);
+        }
     }
 
-    // public function show($id)
-    // {
-    //     try {
-    //         /** @var Pdf $pdf */
-    //         $pdf = Pdf::findOrFail($id);
+    public function view($id)
+    {
+        try {
+            /** @var Pdf $pdf */
+            $pdf = Pdf::findOrFail($id);
             
-    //         if (!$pdf->canBeAccessedBy(Auth::user())) {
-    //             return response()->json(['error' => 'Unauthorized access'], 403);
-    //         }
+            if (!$pdf->canBeAccessedBy(Auth::user())) {
+                return response()->json(['error' => 'Unauthorized access'], 403);
+            }
 
-    //         return response()->json([
-    //             'pdf' => $pdf,
-    //             'url' => $this->pdfService->getPdfUrl($pdf)
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         return response()->json(['error' => 'PDF not found'], 404);
-    //     }
-    // }
+            return $this->pdfService->viewPdf($pdf);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to view PDF', 'message' => $e->getMessage()], 404);
+        }
+    }
 
     public function update(Request $request, $id)
     {

@@ -59,6 +59,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/pdfs/{id}', [PdfController::class, 'update']);
     Route::delete('/pdfs/{id}', [PdfController::class, 'destroy']);
     Route::get('/pdfs/{id}/download', [PdfController::class, 'download']);
+    Route::get('/pdfs/{id}/view', [PdfController::class, 'view']);
     Route::post('/collections/{collectionId}/pdfs/{pdfId}', [CollectionController::class, 'addPdf']);
 
     // Collection routes

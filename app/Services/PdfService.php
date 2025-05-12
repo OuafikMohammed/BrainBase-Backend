@@ -33,11 +33,26 @@ class PdfService
         }
 
         return $query->orderBy('created_at', 'desc')->get();
+    }    public function getPdfUrl(Pdf $pdf)
+    {
+        return Storage::disk('public')->url($pdf->file_path);
+    }
+
+    public function viewPdf(Pdf $pdf)
+    {
+        $path = storage_path('app/public/' . $pdf->file_path);
+        if (!file_exists($path)) {
+            throw new \Exception('PDF file not found');
+        }
+        return response()->file($path);
     }
 
     public function downloadPdf(Pdf $pdf)
     {
-        $path = storage_path('app/' . $pdf->file_path);
+        $path = storage_path('app/public/' . $pdf->file_path);
+        if (!file_exists($path)) {
+            throw new \Exception('PDF file not found');
+        }
         return response()->download($path, $pdf->title . '.pdf');
     }
 
