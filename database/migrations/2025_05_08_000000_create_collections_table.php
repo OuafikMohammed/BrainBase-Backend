@@ -7,16 +7,14 @@ use Illuminate\Support\Facades\Schema;
 class CreateCollectionsTable extends Migration
 {
     public function up()
-    {
-        Schema::create('collections', function (Blueprint $table) {
-            $table->uuid('id')->primary(); // UUID as primary key
+    {        Schema::create('collections', function (Blueprint $table) {            $table->id(); // Auto-incrementing bigint
             $table->string('name');
             $table->text('description')->nullable();
-            $table->uuid('created_by'); // Foreign key to users.id_profile
+            $table->uuid('created_by'); // User who created the collection
             $table->boolean('is_favorite_collection')->default(false);
             $table->timestamps();
             $table->softDeletes();
-
+            
             $table->foreign('created_by')
                   ->references('id_profile')
                   ->on('users')

@@ -8,11 +8,10 @@ use App\Models\Collection;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Symfony\Component\HttpFoundation\StreamedResponse;
-use Ramsey\Uuid\Uuid;
+
 class PdfService
 {
-    public function search(array $filters)
+    public function search(array $filters = [])
     {
         $query = Pdf::query();
         
@@ -35,7 +34,10 @@ class PdfService
         return $query->orderBy('created_at', 'desc')->get();
     }    public function getPdfUrl(Pdf $pdf)
     {
-        return Storage::disk('public')->url($pdf->file_path);
+        if (!Storage::disk('public')->exists($pdf->file_path)) {
+            throw new \Exception('PDF file not found');
+        }
+        return asset('storage/' . $pdf->file_path);
     }
 
     public function viewPdf(Pdf $pdf)
@@ -62,24 +64,33 @@ class PdfService
             throw new \Exception('Unauthorized to upload PDFs');
         }
 
-        // Validate file type and size
+        // Double check file type and size
         if ($file->getMimeType() !== 'application/pdf') {
             throw new \Exception('Invalid file type. Only PDF files are allowed.');
         }
+        
         if ($file->getSize() > 10485760) { // 10MB limit
             throw new \Exception('File size exceeds the limit of 10MB.');
         }
 
-        // Generate UUID
-        $uuid = (string) Str::uuid(); // Laravel helper
+        if (!$file->isValid()) {
+            throw new \Exception('Invalid file upload.');
+        }
+
+        // Generate UUID for the file
+        $uuid = (string) Str::uuid();
         $filename = $uuid . '.pdf';
         $path = 'pdfs/' . $filename;
 
         try {
             // Store file
-            Storage::disk('public')->put($path, file_get_contents($file));
+            $result = $file->storeAs('pdfs', $filename, 'public');
+            
+            if (!$result) {
+                throw new \Exception('Failed to store PDF file.');
+            }
 
-            // Create PDF record with explicit UUID
+            // Create PDF record
             $pdf = Pdf::create([
                 'id' => $uuid,
                 'title' => $data['title'],
@@ -92,16 +103,21 @@ class PdfService
 
             // Add to collections if specified
             if (!empty($data['collections'])) {
-                $collections = Collection::whereIn('id', $data['collections'])->get();
-                foreach ($collections as $collection) {
-                    if ($collection->canAddPdfs($user)) {
-                        $pdf->collections()->attach($collection->id);
-                    }
-                }
+                $collections = Collection::whereIn('id', $data['collections'])
+                    ->where(function ($query) use ($user) {
+                        $query->where('owner_id', $user->id_profile)
+                            ->orWhereHas('shares', function ($q) use ($user) {
+                                $q->where('user_id', $user->id_profile)
+                                    ->where('permissions', 'edit');
+                            });
+                    })->get();
+                    
+                $pdf->collections()->attach($collections->pluck('id'));
             }
 
             return $pdf;
         } catch (\Exception $e) {
+            // Clean up the stored file if it exists
             if (Storage::disk('public')->exists($path)) {
                 Storage::disk('public')->delete($path);
             }
@@ -114,8 +130,7 @@ class PdfService
         if (Storage::disk('public')->exists($pdf->file_path)) {
             Storage::disk('public')->delete($pdf->file_path);
         }
-
-        $pdf->collections()->detach(); // Remove from all collections
-        $pdf->delete(); // Soft-delete
+        $pdf->delete();
+        return true;
     }
 }

@@ -8,9 +8,10 @@ class CreateCollectionPdfTable extends Migration
 {
     public function up()
     {
-        Schema::create('collection_pdf', function (Blueprint $table) {
-            $table->uuid('collection_id');
-            $table->uuid('pdf_id');
+        Schema::create('collection_pdfs', function (Blueprint $table) {
+            $table->unsignedBigInteger('collection_id');
+            $table->char('pdf_id', 36);
+            $table->unsignedBigInteger('added_by')->nullable();
             $table->timestamps();
 
             // Foreign keys
@@ -31,6 +32,6 @@ class CreateCollectionPdfTable extends Migration
 
     public function down()
     {
-        Schema::dropIfExists('collection_pdf');
+        Schema::dropIfExists('collection_pdfs');
     }
 }

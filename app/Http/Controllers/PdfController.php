@@ -31,8 +31,27 @@ class PdfController extends Controller
     public function store(Request $request)
     {
         try {
+            // Validate file presence first
+            if (!$request->hasFile('file')) {
+                return response()->json([
+                    'error' => 'Upload failed',
+                    'message' => 'No PDF file was provided'
+                ], 400);
+            }
+
+            $file = $request->file('file');
+
+            // Validate file type and mime type
+            if (!$file->isValid() || $file->getMimeType() !== 'application/pdf') {
+                return response()->json([
+                    'error' => 'Upload failed',
+                    'message' => 'Invalid file type. Only PDF files are allowed.'
+                ], 400);
+            }
+
+            // Validate other fields
             $request->validate([
-                'file' => 'required|file|mimetypes:application/pdf|max:10240',
+                'file' => 'required|file|mimetypes:application/pdf|max:10240', // 10MB max
                 'title' => 'required|string|max:255',
                 'description' => 'nullable|string',
                 'category' => 'nullable|string',
@@ -41,7 +60,7 @@ class PdfController extends Controller
             ]);
 
             $pdf = $this->pdfService->uploadPdf(
-                $request->file('file'),
+                $file,
                 $request->only(['title', 'description', 'category', 'collections']),
                 Auth::user()
             );
@@ -50,6 +69,11 @@ class PdfController extends Controller
                 'message' => 'PDF uploaded successfully',
                 'pdf' => $pdf
             ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation failed',
+                'message' => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Upload failed',

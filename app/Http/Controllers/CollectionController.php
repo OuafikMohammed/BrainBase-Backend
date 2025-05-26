@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Collection;
 use App\Models\Pdf;
+use App\Models\User;
 use App\Services\CollectionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,19 +15,53 @@ class CollectionController extends Controller
     public function index()
     {
         try {
-            // For now, return all collections the user has access to
-            // You might want to implement pagination here
-            $collections = Collection::where(function($query) {
-                $query->where('created_by', Auth::id())
-                      ->orWhere(function($q) {
-                          $q->where('is_favorite_collection', true);
-                      });
-            })->with(['pdfs', 'owner'])->get();
+            $user = Auth::user();
+            Log::info('Fetching collections for user', [
+                'user_id' => $user->id,
+                'user_type' => $user->user_type
+            ]);
+
+            $collections = Collection::where(function($query) use ($user) {
+                $query->where('created_by', $user->id)
+                    ->orWhereHas('shares', function($q) use ($user) {
+                        $q->where('user_id', $user->id);
+                    });
+                
+                if (in_array($user->user_type, ['ADMIN', 'EDITOR'])) {
+                    $query->orWhere('is_favorite_collection', false);
+                }
+            })
+            ->with(['pdfs', 'creator'])
+            ->get();
+
+            Log::info('Collections fetched successfully', [
+                'count' => $collections->count()
+            ]);
 
             return response()->json($collections);
         } catch (\Exception $e) {
-            Log::error('Failed to fetch collections: ' . $e->getMessage());
-            return response()->json(['error' => 'Failed to fetch collections'], 500);
+            Log::error('Failed to fetch collections', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'error' => 'Failed to fetch collections',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function shared()
+    {
+        try {
+            $collections = Collection::whereHas('shares', function($query) {
+                $query->where('user_id', Auth::id());
+            })->with(['pdfs', 'creator'])->get();
+
+            return response()->json($collections);
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch shared collections: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to fetch shared collections'], 500);
         }
     }
 
@@ -41,9 +76,7 @@ class CollectionController extends Controller
             // Only Admin and Editor can create collections
             if (!in_array(Auth::user()->user_type, ['ADMIN', 'EDITOR'])) {
                 return response()->json(['error' => 'Unauthorized to create collections'], 403);
-            }
-
-            $collection = Collection::create([
+            }            $collection = Collection::create([
                 'name' => $request->name,
                 'description' => $request->description,
                 'created_by' => Auth::id(),
@@ -61,20 +94,88 @@ class CollectionController extends Controller
                 'message' => $e->getMessage()
             ], 400);
         }
-    }
-
-    public function show($id)
+    }    public function show($id)
     {
         try {
-            $collection = Collection::with(['pdfs', 'owner'])->findOrFail($id);
+            $user = Auth::user();
             
-            if (!$collection->canBeAccessedBy(Auth::user())) {
+            Log::info('Attempting to fetch collection', [
+                'collection_id' => $id,
+                'user_id' => $user->id,
+                'user_type' => $user->user_type,
+                'user_profile_id' => $user->id_profile
+            ]);
+
+            $collection = Collection::with(['pdfs', 'creator', 'shares'])
+                ->where('id', $id)
+                ->first();
+
+            if (!$collection) {
+                Log::warning('Collection not found', [
+                    'collection_id' => $id,
+                    'user_id' => $user->id
+                ]);
+                return response()->json(['error' => 'Collection not found'], 404);
+            }
+
+            // Check if user has access
+            $hasAccess = 
+                $collection->created_by === $user->id_profile || // Is owner
+                $collection->visibility === 'public' || // Is public
+                $collection->shares()->where('user_id', $user->id_profile)->exists() || // Is shared
+                in_array($user->user_type, ['ADMIN', 'EDITOR']); // Is admin/editor
+
+            Log::info('Access check result', [
+                'collection_id' => $id,
+                'user_id' => $user->id,
+                'user_profile_id' => $user->id_profile,
+                'collection_creator' => $collection->created_by,
+                'visibility' => $collection->visibility,
+                'is_shared' => $collection->shares()->where('user_id', $user->id_profile)->exists(),
+                'user_type' => $user->user_type,
+                'has_access' => $hasAccess
+            ]);
+
+            if (!$hasAccess) {
+                Log::warning('Access denied to collection', [
+                    'collection_id' => $id,
+                    'user_id' => $user->id,
+                    'user_type' => $user->user_type,
+                    'user_profile_id' => $user->id_profile,
+                    'collection_creator' => $collection->created_by
+                ]);
                 return response()->json(['error' => 'Unauthorized access'], 403);
             }
 
-            return response()->json($collection);
+            // Add additional permissions info for the frontend
+            $collectionData = $collection->toArray();
+            $collectionData['canEdit'] = $collection->created_by === $user->id_profile || 
+                                      in_array($user->user_type, ['ADMIN', 'EDITOR']);
+            $collectionData['canShare'] = $collection->created_by === $user->id_profile || 
+                                       in_array($user->user_type, ['ADMIN', 'EDITOR']);
+
+            Log::info('Collection fetched successfully', [
+                'collection_id' => $collection->id,
+                'user_id' => $user->id,
+                'permissions' => [
+                    'canEdit' => $collectionData['canEdit'],
+                    'canShare' => $collectionData['canShare']
+                ]
+            ]);
+
+            return response()->json($collectionData);
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Collection not found'], 404);
+            Log::error('Failed to fetch collection', [
+                'error' => $e->getMessage(),
+                'collection_id' => $id,
+                'user_id' => Auth::id(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'Failed to fetch collection',
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
 
@@ -124,47 +225,316 @@ class CollectionController extends Controller
                 'message' => $e->getMessage()
             ], 400);
         }
-    }
-
-    public function addPdf($collectionId, $pdfId)
+    }    public function addPdf($collectionId, $pdfId)
     {
         try {
+            $user = Auth::user();
+            Log::info('Attempting to add PDF to collection', [
+                'collection_id' => $collectionId,
+                'pdf_id' => $pdfId,
+                'user_id' => $user->id_profile
+            ]);
+
             $collection = Collection::findOrFail($collectionId);
             $pdf = Pdf::findOrFail($pdfId);
 
-            if (!$collection->canAddPdfs(Auth::user())) {
+            if (!$collection->canAddPdfs($user)) {
+                Log::warning('Unauthorized attempt to add PDF to collection', [
+                    'collection_id' => $collectionId,
+                    'pdf_id' => $pdfId,
+                    'user_id' => $user->id_profile
+                ]);
                 return response()->json(['error' => 'Unauthorized to add PDFs to this collection'], 403);
             }
 
-            $collection->pdfs()->attach($pdf->id);
-            return response()->json(['message' => 'PDF added to collection successfully']);
+            // Check if PDF is already in collection
+            if ($collection->pdfs()->where('pdf_id', $pdfId)->exists()) {
+                return response()->json(['message' => 'PDF is already in this collection']);
+            }
+
+            $collection->pdfs()->attach($pdf->id, ['added_by' => $user->id_profile]);
+            
+            Log::info('Successfully added PDF to collection', [
+                'collection_id' => $collectionId,
+                'pdf_id' => $pdfId,
+                'user_id' => $user->id_profile
+            ]);
+
+            return response()->json([
+                'message' => 'PDF added to collection successfully',
+                'pdf' => [
+                    'id' => $pdf->id,
+                    'title' => $pdf->title,
+                    'description' => $pdf->description,
+                    'category' => $pdf->category,
+                    'size' => $pdf->size,
+                    'file_path' => $pdf->file_path,
+                    'uploaded_by' => $pdf->uploaded_by,
+                    'created_at' => $pdf->created_at,
+                    'updated_at' => $pdf->updated_at
+                ]
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::error('Collection or PDF not found', [
+                'collection_id' => $collectionId,
+                'pdf_id' => $pdfId,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json(['error' => 'Collection or PDF not found'], 404);
         } catch (\Exception $e) {
-            Log::error('Failed to add PDF to collection: ' . $e->getMessage());
+            Log::error('Failed to add PDF to collection', [
+                'collection_id' => $collectionId,
+                'pdf_id' => $pdfId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'error' => 'Failed to add PDF to collection',
                 'message' => $e->getMessage()
-            ], 400);
+            ], 500);
         }
-    }
-
-    public function removePdf($collectionId, $pdfId)
+    }    public function removePdf($collectionId, $pdfId)
     {
         try {
+            $user = Auth::user();
+            Log::info('Attempting to remove PDF from collection', [
+                'collection_id' => $collectionId,
+                'pdf_id' => $pdfId,
+                'user_id' => $user->id_profile
+            ]);
+
             $collection = Collection::findOrFail($collectionId);
             $pdf = Pdf::findOrFail($pdfId);
 
-            if (!$collection->canBeModifiedBy(Auth::user())) {
+            if (!$collection->canBeModifiedBy($user)) {
+                Log::warning('Unauthorized attempt to remove PDF from collection', [
+                    'collection_id' => $collectionId,
+                    'pdf_id' => $pdfId,
+                    'user_id' => $user->id_profile
+                ]);
                 return response()->json(['error' => 'Unauthorized to remove PDFs from this collection'], 403);
             }
 
+            // Check if PDF is actually in the collection
+            if (!$collection->pdfs()->where('pdf_id', $pdfId)->exists()) {
+                return response()->json(['message' => 'PDF is not in this collection'], 404);
+            }
+
             $collection->pdfs()->detach($pdf->id);
+            
+            Log::info('Successfully removed PDF from collection', [
+                'collection_id' => $collectionId,
+                'pdf_id' => $pdfId,
+                'user_id' => $user->id_profile
+            ]);
+
             return response()->json(['message' => 'PDF removed from collection successfully']);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::error('Collection or PDF not found', [
+                'collection_id' => $collectionId,
+                'pdf_id' => $pdfId,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json(['error' => 'Collection or PDF not found'], 404);
         } catch (\Exception $e) {
-            Log::error('Failed to remove PDF from collection: ' . $e->getMessage());
+            Log::error('Failed to remove PDF from collection', [
+                'collection_id' => $collectionId,
+                'pdf_id' => $pdfId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'error' => 'Failed to remove PDF from collection',
                 'message' => $e->getMessage()
-            ], 400);
+            ], 500);
+        }
+    }public function getPdfs($id)
+    {
+        try {
+            $user = Auth::user();
+            Log::info('Attempting to fetch PDFs for collection', [
+                'collection_id' => $id,
+                'user_id' => $user->id_profile,
+                'user_type' => $user->user_type
+            ]);
+            
+            $collection = Collection::findOrFail($id);
+            
+            if (!$collection->canBeAccessedBy($user)) {
+                Log::warning('Unauthorized access attempt to collection PDFs', [
+                    'collection_id' => $id,
+                    'user_id' => $user->id_profile
+                ]);
+                return response()->json(['error' => 'Unauthorized access'], 403);
+            }
+
+            $pdfs = $collection->pdfs()
+                ->with(['uploader'])
+                ->get()
+                ->map(function ($pdf) {
+                    return [
+                        'id' => $pdf->id,
+                        'title' => $pdf->title,
+                        'description' => $pdf->description,
+                        'category' => $pdf->category,
+                        'size' => $pdf->size,
+                        'file_path' => $pdf->file_path,
+                        'uploaded_by' => $pdf->uploaded_by,
+                        'uploader' => $pdf->uploader,
+                        'created_at' => $pdf->created_at,
+                        'updated_at' => $pdf->updated_at
+                    ];
+                });
+
+            Log::info('Successfully fetched PDFs for collection', [
+                'collection_id' => $id,
+                'pdfs_count' => $pdfs->count()
+            ]);
+            
+            return response()->json($pdfs);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::error('Collection not found', [
+                'collection_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json(['error' => 'Collection not found'], 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch collection PDFs', [
+                'collection_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'error' => 'Failed to fetch PDFs',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Share a collection with users
+     */
+    public function share(Request $request, $id)
+    {
+        try {
+            $request->validate([
+                'users' => 'required|array',
+                'users.*' => 'exists:users,id',
+                'role' => 'required|string|in:viewer,editor,admin'
+            ]);
+
+            $collection = Collection::findOrFail($id);
+
+            if (!$collection->canManageShares(Auth::user())) {
+                return response()->json(['error' => 'Unauthorized to share this collection'], 403);
+            }
+
+            foreach ($request->users as $userId) {
+                $collection->shares()->updateOrCreate(
+                    ['user_id' => $userId],
+                    [
+                        'role' => $request->role,
+                        'created_by' => Auth::id()
+                    ]
+                );
+            }
+
+            return response()->json(['message' => 'Collection shared successfully']);
+        } catch (\Exception $e) {
+            Log::error('Failed to share collection: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to share collection'], 500);
+        }
+    }
+
+    /**
+     * Update user's role in a shared collection
+     */
+    public function updateShare(Request $request, $id, $userId)
+    {
+        try {
+            $request->validate([
+                'role' => 'required|string|in:viewer,editor,admin'
+            ]);
+
+            $collection = Collection::findOrFail($id);
+
+            if (!$collection->canManageShares(Auth::user())) {
+                return response()->json(['error' => 'Unauthorized to modify sharing settings'], 403);
+            }
+
+            $share = $collection->shares()->where('user_id', $userId)->firstOrFail();
+            $share->role = $request->role;
+            $share->save();
+
+            return response()->json(['message' => 'Share settings updated successfully']);
+        } catch (\Exception $e) {
+            Log::error('Failed to update share settings: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to update share settings'], 500);
+        }
+    }
+
+    /**
+     * Remove a user's access to a collection
+     */
+    public function removeShare($id, $userId)
+    {
+        try {
+            $collection = Collection::findOrFail($id);
+
+            if (!$collection->canManageShares(Auth::user())) {
+                return response()->json(['error' => 'Unauthorized to remove sharing'], 403);
+            }
+
+            $collection->shares()->where('user_id', $userId)->delete();
+            return response()->json(['message' => 'Share removed successfully']);
+        } catch (\Exception $e) {
+            Log::error('Failed to remove share: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to remove share'], 500);
+        }
+    }
+
+    /**
+     * Get sharing settings for a collection
+     */
+    public function getShares($id)
+    {
+        try {
+            $collection = Collection::findOrFail($id);
+
+            if (!$collection->canBeAccessedBy(Auth::user())) {
+                return response()->json(['error' => 'Unauthorized access'], 403);
+            }
+
+            $shares = $collection->shares()
+                ->with('user:id,name,email')
+                ->get();
+
+            return response()->json($shares);
+        } catch (\Exception $e) {
+            Log::error('Failed to get sharing settings: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to get sharing settings'], 500);
+        }
+    }
+
+    /**
+     * Search users for sharing
+     */
+    public function searchUsers(Request $request)
+    {
+        try {
+            $request->validate([
+                'query' => 'required|string|min:2'
+            ]);            $searchQuery = $request->input('query');
+            $users = User::where('name', 'like', "%{$searchQuery}%")
+                ->orWhere('email', 'like', "%{$searchQuery}%")
+                ->select('id', 'name', 'email')
+                ->limit(10)
+                ->get();
+
+            return response()->json($users);
+        } catch (\Exception $e) {
+            Log::error('Failed to search users: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to search users'], 500);
         }
     }
 }

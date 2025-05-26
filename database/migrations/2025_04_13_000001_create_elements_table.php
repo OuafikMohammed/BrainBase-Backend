@@ -30,6 +30,10 @@ return new class extends Migration
                   ->on('vaults')
                   ->onDelete('cascade');
                   
+            // $table->foreignId('id_vault')
+            //       ->constrained('vaults')
+            //       ->onDelete('cascade');
+                  
             $table->foreign('id_parent')
                   ->references('id_element')
                   ->on('elements')

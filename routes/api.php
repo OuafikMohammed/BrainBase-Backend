@@ -7,6 +7,7 @@ use App\Http\Controllers\API\PasswordResetController;
 use App\Http\Controllers\Api\VaultController;
 use App\Http\Controllers\PdfController;
 use App\Http\Controllers\CollectionController;
+use App\Http\Controllers\Api\SharedController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -60,15 +61,38 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/pdfs/{id}', [PdfController::class, 'destroy']);
     Route::get('/pdfs/{id}/download', [PdfController::class, 'download']);
     Route::get('/pdfs/{id}/view', [PdfController::class, 'view']);
-    Route::post('/collections/{collectionId}/pdfs/{pdfId}', [CollectionController::class, 'addPdf']);
+
+    // Sharing routes
+    Route::get('/shared/pdfs', [SharedController::class, 'getSharedPdfs']);
+    Route::post('/pdfs/{pdfId}/share', [SharedController::class, 'sharePdf']);
+    Route::put('/pdfs/{pdfId}/share', [SharedController::class, 'updateSharing']);
+    Route::delete('/pdfs/{pdfId}/share/{userId}', [SharedController::class, 'removeSharing']);
+    Route::get('/pdfs/{pdfId}/share', [SharedController::class, 'getSharingSettings']);
 
     // Collection routes
-    Route::get('/collections', [CollectionController::class, 'index']);
-    Route::post('/collections', [CollectionController::class, 'store']);
-    Route::get('/collections/{collectionId}', [CollectionController::class, 'show']);
-    Route::put('/collections/{collectionId}', [CollectionController::class, 'update']);
-    Route::delete('/collections/{collectionId}', [CollectionController::class, 'destroy']);
-    Route::post('/collections/{collectionId}/pdfs/{pdfId}', [CollectionController::class, 'addPdf']);
-    Route::delete('/collections/{collectionId}/pdfs/{pdfId}', [CollectionController::class, 'removePdf']);
-    Route::get('/favorites', [CollectionController::class, 'getFavorites']);
+    Route::prefix('collections')->group(function () {
+        // Specific routes first
+        Route::get('/shared', [CollectionController::class, 'shared']);
+        Route::get('/search-users', [CollectionController::class, 'searchUsers']);
+        
+        // Collection CRUD routes
+        Route::get('/', [CollectionController::class, 'index']);
+        Route::post('/', [CollectionController::class, 'store']);
+        
+        // Collection detail routes
+        Route::get('/{collection}', [CollectionController::class, 'show']);
+        Route::put('/{collection}', [CollectionController::class, 'update']);
+        Route::delete('/{collection}', [CollectionController::class, 'destroy']);
+        
+        // Collection PDFs routes
+        Route::get('/{collection}/pdfs', [CollectionController::class, 'getPdfs']);
+        Route::post('/{collection}/pdfs/{pdf}', [CollectionController::class, 'addPdf']);
+        Route::delete('/{collection}/pdfs/{pdf}', [CollectionController::class, 'removePdf']);
+        
+        // Collection sharing routes
+        Route::post('/{collection}/share', [CollectionController::class, 'share']);
+        Route::put('/{collection}/share/{user}', [CollectionController::class, 'updateShare']);
+        Route::delete('/{collection}/share/{user}', [CollectionController::class, 'removeShare']);
+        Route::get('/{collection}/shares', [CollectionController::class, 'getShares']);
+    });
 });
