@@ -7,32 +7,27 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     public function up()
-    {
-        Schema::create('collection_shares', function (Blueprint $table) {            $table->id();
-            $table->unsignedBigInteger('collection_id');
-            $table->uuid('user_id');
-            $table->string('role')->default('viewer'); // viewer, editor, admin
-            $table->uuid('created_by');
+    {        Schema::create('collection_shares', function (Blueprint $table) {
+            $table->char('idShare', 36)->primary();
+            $table->char('idCollection', 36);
+            $table->char('idProfile', 36);
+            $table->enum('permission', ['view', 'edit', 'admin'])->default('view');
+            $table->timestamp('dateShare');
             $table->timestamps();
             $table->softDeletes();
 
-            $table->foreign('collection_id')
+            $table->foreign('idCollection')
                   ->references('id')
                   ->on('collections')
                   ->onDelete('cascade');
 
-            $table->foreign('user_id')
+            $table->foreign('idProfile')
                   ->references('id_profile')
                   ->on('users')
                   ->onDelete('cascade');
 
-            $table->foreign('created_by')
-                  ->references('id_profile')
-                  ->on('users')
-                  ->onDelete('cascade');
-            
             // Prevent duplicate shares
-            $table->unique(['collection_id', 'user_id']);
+            $table->unique(['idCollection', 'idProfile']);
         });
     }
 

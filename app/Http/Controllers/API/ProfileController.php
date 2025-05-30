@@ -23,12 +23,32 @@ class ProfileController extends Controller
      */
     public function show(Request $request): JsonResponse
     {
-        $user = $request->user();
-        
-        return response()->json([
-            'status' => 'success',
-            'user' => $user
-        ]);
+        try {
+            $user = $request->user();
+            // Add better error handling
+            if (!$user) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'User not found'
+                ], 404);
+            }
+            
+            return response()->json([
+                'status' => 'success',
+                'user' => $user
+            ]);
+        } catch (\Exception $e) {
+            // Add proper error logging
+            Log::error('Profile fetch failed:', [
+                'error' => $e->getMessage(),
+                'user_id' => $request->user()?->id
+            ]);
+            
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to fetch profile'
+            ], 500);
+        }
     }
 
     /**

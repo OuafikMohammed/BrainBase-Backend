@@ -9,9 +9,9 @@ class CreateCollectionPdfTable extends Migration
     public function up()
     {
         Schema::create('collection_pdfs', function (Blueprint $table) {
-            $table->unsignedBigInteger('collection_id');
+            $table->char('collection_id', 36);
             $table->char('pdf_id', 36);
-            $table->unsignedBigInteger('added_by')->nullable();
+            $table->char('added_by', 36)->nullable();
             $table->timestamps();
 
             // Foreign keys

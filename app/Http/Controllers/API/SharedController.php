@@ -16,9 +16,8 @@ class SharedController extends Controller
      */
     public function getSharedPdfs()
     {
-        $user = Auth::user();
-        $sharedPdfs = Pdf::whereHas('shares', function($query) use ($user) {
-            $query->where('user_id', $user->id);
+        $user = Auth::user();        $sharedPdfs = Pdf::whereHas('shares', function($query) use ($user) {
+            $query->where('idProfile', $user->id_profile);
         })->with('owner')->get();
 
         return response()->json($sharedPdfs);
@@ -42,9 +41,8 @@ class SharedController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        foreach ($request->users as $userId) {
-            Share::updateOrCreate(
-                ['pdf_id' => $pdfId, 'user_id' => $userId],
+        foreach ($request->users as $userId) {            Share::updateOrCreate(
+                ['pdf_id' => $pdfId, 'idProfile' => $userId],
                 ['permissions' => $request->permissions]
             );
         }
@@ -66,10 +64,8 @@ class SharedController extends Controller
 
         if ($pdf->user_id !== Auth::id()) {
             return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
-        $share = Share::where('pdf_id', $pdfId)
-            ->where('user_id', $request->user_id)
+        }        $share = Share::where('pdf_id', $pdfId)
+            ->where('idProfile', $request->idProfile)
             ->firstOrFail();
 
         $share->permissions = $request->permissions;
@@ -89,8 +85,7 @@ class SharedController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        Share::where('pdf_id', $pdfId)
-            ->where('user_id', $userId)
+        Share::where('pdf_id', $pdfId)            ->where('idProfile', $userId)
             ->delete();
 
         return response()->json(['message' => 'Sharing removed successfully']);

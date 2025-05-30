@@ -5,78 +5,123 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Ramsey\Uuid\Uuid;
+use App\Notifications\CollectionShared;
+use Illuminate\Support\Carbon;
 
 class Collection extends Model
 {
-    use HasFactory, SoftDeletes;    protected $fillable = [
+    use HasFactory, SoftDeletes;
+    
+    protected $fillable = [
         'name',
         'description',
         'created_by',
         'is_favorite_collection',
         'visibility'
     ];
-      public $incrementing = true;
-    protected $keyType = 'int';
+
+    const VISIBILITY_PRIVATE = 'private';
+    const VISIBILITY_PUBLIC = 'public';
+    const VISIBILITY_SHARED = 'shared';
+
+    public $incrementing = false;
+    protected $keyType = 'string';
+    protected $primaryKey = 'id';
 
     protected $casts = [
         'is_favorite_collection' => 'boolean',
         'created_at' => 'datetime',
-        'updated_at' => 'datetime'
-    ];    public function pdfs()
+        'updated_at' => 'datetime',
+        'accepted_at' => 'datetime',
+        'rejected_at' => 'datetime'
+    ];
+
+    protected static function boot()
+    {
+        parent::boot();
+        
+        static::creating(function ($model) {
+            $model->id = Uuid::uuid4()->toString();
+        });
+    }
+
+    public function pdfs()
     {
         return $this->belongsToMany(Pdf::class, 'collection_pdfs')
             ->withTimestamps()
             ->withPivot('added_by')
             ->using(CollectionPdf::class);
-    }public function creator()
+    }
+
+    public function creator()
     {
         return $this->belongsTo(User::class, 'created_by', 'id_profile');
     }
 
     public function shares()
     {
-        return $this->hasMany(CollectionShare::class);
+        return $this->hasMany(CollectionShare::class, 'idCollection', 'id');
+    }
+
+    public function sharedWith()
+    {
+        return $this->belongsToMany(User::class, 'collection_shares', 'idCollection', 'idProfile')
+            ->withPivot('permission', 'dateShare', 'accepted_at', 'rejected_at')
+            ->withTimestamps();
     }
 
     public function sharedUsers()
     {
-        return $this->belongsToMany(User::class, 'collection_shares')
-            ->withPivot('role', 'created_by')
+        return $this->belongsToMany(User::class, 'collection_shares', 'idCollection', 'idProfile')
+            ->withPivot('permission', 'dateShare', 'accepted_at', 'rejected_at')
             ->withTimestamps();
-    }    public function canBeAccessedBy(User $user): bool
-    {
-        // Admins can access all collections
-        if ($user->user_type === 'ADMIN') return true;
-        
-        // Owner can access
-        if ($this->created_by === $user->id) return true;
-        
-        // Check if collection is shared with user
-        if ($this->shares()->where('user_id', $user->id)->exists()) return true;
-        
-        // Check if collection is public
-        if ($this->visibility === 'public') return true;
-        
-        // Users can access their own collections
-        if ($this->created_by === $user->id_profile) return true;
-
-        // Check if the collection is shared with the user
-        return $this->shares()->where('user_id', $user->id_profile)->exists();
     }
 
-    public function canBeModifiedBy(User $user): bool
+    public function notifyNewShareRequest(User $targetUser, User $fromUser, string $permission): void
     {
-        // Admins can modify all collections
-        if ($user->user_type === 'ADMIN') return true;
+        $targetUser->notify(new CollectionShared(
+            $this,
+            $fromUser,
+            $permission
+        ));
+    }
 
-        // Owner can modify their collections
-        if ($this->created_by === $user->id_profile) return true;
-
-        // Check if user has editor or admin role
+    public function getPendingShareRequests(): \Illuminate\Database\Eloquent\Collection
+    {
         return $this->shares()
-            ->where('user_id', $user->id_profile)
-            ->whereIn('role', ['editor', 'admin'])
-            ->exists();
+                    ->whereNull('accepted_at')
+                    ->whereNull('rejected_at')
+                    ->get();
+    }
+
+    public function respondToShareRequest(User $user, bool $accept): void
+    {
+        $share = $this->shares()
+                      ->where('idProfile', $user->id_profile)
+                      ->whereNull('accepted_at')
+                      ->whereNull('rejected_at')
+                      ->first();
+
+        if (!$share) {
+            throw new \Exception('No pending share request found');
+        }
+
+        if ($accept) {
+            $share->accepted_at = now();
+        } else {
+            $share->rejected_at = now();
+        }
+        $share->save();
+    }
+
+    public function isSharedWith(User $user): bool
+    {
+        return $this->shares()
+                    ->where('idProfile', $user->id_profile)
+                    ->whereNotNull('accepted_at')
+                    ->whereNull('rejected_at')
+                    ->exists();
     }
 
     public function canAddPdfs(User $user): bool
@@ -86,16 +131,38 @@ class Collection extends Model
 
     public function canManageShares(User $user): bool
     {
-        // Admins can manage all collections
-        if ($user->user_type === 'ADMIN') return true;
+        return $this->created_by === $user->id_profile || 
+               in_array($user->user_type, ['ADMIN']) ||
+               $this->shares()
+                    ->where('idProfile', $user->id_profile)
+                    ->where('permission', 'admin')
+                    ->exists();
+    }
 
-        // Owner can manage their collections
-        if ($this->created_by === $user->id_profile) return true;
+    public function canBeAccessedBy(User $user): bool
+    {
+        if ($this->visibility === self::VISIBILITY_PUBLIC) {
+            return true;
+        }
+        
+        return $this->created_by === $user->id_profile || 
+               in_array($user->user_type, ['ADMIN', 'EDITOR']) ||
+               $this->shares()
+                    ->where('idProfile', $user->id_profile)
+                    ->whereNotNull('accepted_at')
+                    ->whereNull('rejected_at')
+                    ->exists();
+    }
 
-        // Only users with admin role can manage shares
-        return $this->shares()
-            ->where('user_id', $user->id_profile)
-            ->where('role', 'admin')
-            ->exists();
+    public function canBeModifiedBy(User $user): bool
+    {
+        return $this->created_by === $user->id_profile || 
+               in_array($user->user_type, ['ADMIN', 'EDITOR']) ||
+               $this->shares()
+                    ->where('idProfile', $user->id_profile)
+                    ->whereNotNull('accepted_at')
+                    ->whereNull('rejected_at')
+                    ->whereIn('permission', ['edit', 'admin'])
+                    ->exists();
     }
 }

@@ -9,7 +9,7 @@ class Share extends Model
 {    protected $fillable = [
         'pdf_id',
         'collection_id',
-        'user_id',
+        'idProfile',
         'permissions'
     ];
 
@@ -31,9 +31,8 @@ class Share extends Model
 
     /**
      * Get the user this PDF is shared with.
-     */
-    public function user(): BelongsTo
+     */    public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'user_id', 'id_profile');
+        return $this->belongsTo(User::class, 'idProfile', 'id_profile');
     }
 }

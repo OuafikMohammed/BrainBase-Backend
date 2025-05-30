@@ -90,9 +90,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{collection}/pdfs/{pdf}', [CollectionController::class, 'removePdf']);
         
         // Collection sharing routes
-        Route::post('/{collection}/share', [CollectionController::class, 'share']);
-        Route::put('/{collection}/share/{user}', [CollectionController::class, 'updateShare']);
-        Route::delete('/{collection}/share/{user}', [CollectionController::class, 'removeShare']);
-        Route::get('/{collection}/shares', [CollectionController::class, 'getShares']);
+        Route::post('/{collection}/share', [CollectionController::class, 'shareUserCollection']);
+        Route::put('/{collection}/share/{user}', [CollectionController::class, 'updateUserCollectionPermission']);
+        Route::delete('/{collection}/share/{user}', [CollectionController::class, 'removeUserFromCollection']);
+        Route::get('/{collection}/members', [CollectionController::class, 'loadMembers']);
+        Route::delete('/{collection}/members/{user}', [CollectionController::class, 'removeMember']);
+        Route::get('/{collection}/shares', [CollectionController::class, 'getMembers']);
+        Route::post('/{collection}/share', [CollectionController::class, 'shareUserCollection']);
+        Route::put('/{collection}/share/{user}', [CollectionController::class, 'updateUserCollectionPermission']);
+        Route::delete('/{collection}/share/{user}', [CollectionController::class, 'removeUserFromCollection']);
+        Route::get('/{collection}/members', [CollectionController::class, 'getMembers']);
     });
 });
