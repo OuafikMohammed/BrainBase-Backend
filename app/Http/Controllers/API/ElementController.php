@@ -54,38 +54,112 @@ class ElementController extends Controller
             'content_html' => 'nullable|string',
             'id_parent' => 'nullable|string|exists:elements,id_element',
             'tags' => 'nullable|array',
-            'tags.*' => 'string|max:50' // Ensure each tag is a string and not too long
+            'tags.*' => 'string|max:50'
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        // Handle version creation if content is being updated
-        if ($request->has('content_html') && $element->content_html !== $request->content_html) {
-            $newVersion = [
-                'id' => count($element->versions) + 1,
-                'date' => now()->toISOString(),
-                'content' => $element->content_html
-            ];
+        // If parent is being updated
+        if ($request->has('id_parent')) {
+            $newParentId = $request->id_parent;
             
-            $versions = $element->versions;
-            $versions[] = $newVersion;
-            $element->versions = $versions;
+            // If moving to root
+            if ($newParentId === null) {
+                $element->id_parent = null;
+            } else {
+                // Check that new parent exists and is a folder
+                $newParent = Element::findOrFail($newParentId);
+                if ($newParent->element_type !== 'FOLDER') {
+                    return response()->json([
+                        'message' => 'Parent element must be a folder'
+                    ], 422);
+                }
+                
+                // Check that we're not moving a folder into itself or its descendants
+                if ($element->element_type === 'FOLDER') {
+                    $descendantIds = $this->getDescendantIds($element);
+                    if (in_array($newParentId, $descendantIds)) {
+                        return response()->json([
+                            'message' => 'Cannot move a folder into itself or its descendants'
+                        ], 422);
+                    }
+                }
+                
+                $element->id_parent = $newParentId;
+            }
         }
 
-        // Handle tags update
+        // Update other fields if they're present
+        if ($request->has('name')) {
+            $element->name = $request->name;
+        }
+        
+        if ($request->has('content_html')) {
+            // Create a new version from the current content if content is changing
+            if ($element->content_html !== $request->content_html) {
+                $newVersion = [
+                    'id' => count($element->versions ?? []) + 1,
+                    'date' => now()->toISOString(),
+                    'content' => $element->content_html
+                ];
+                $versions = $element->versions ?? [];
+                $versions[] = $newVersion;
+                $element->versions = $versions;
+            }
+            $element->content_html = $request->content_html;
+        }
+        
         if ($request->has('tags')) {
-            // Ensure tags are unique and trimmed
-            $tags = collect($request->tags)
-                ->map(fn($tag) => trim($tag))
-                ->unique()
-                ->values()
-                ->all();
-            $element->tags = $tags;
+            $element->tags = $request->tags;
         }
 
-        $element->fill($request->except('tags')); // Exclude tags as we handled them separately
+        $element->last_edited = now();
+        $element->save();
+
+        return response()->json($element);
+    }
+
+    // Update an element's parent
+    public function updateParent(Request $request, $elementId)
+    {
+        $validator = Validator::make($request->all(), [
+            'parent_id' => 'nullable|string|exists:elements,id_element'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $element = Element::findOrFail($elementId);
+        $newParentId = $request->parent_id;
+            
+        // If moving to root
+        if ($newParentId === null) {
+            $element->id_parent = null;
+        } else {
+            // Check that new parent exists and is a folder
+            $newParent = Element::findOrFail($newParentId);
+            if ($newParent->element_type !== 'FOLDER') {
+                return response()->json([
+                    'message' => 'Parent element must be a folder'
+                ], 422);
+            }
+            
+            // Check that we're not moving a folder into itself or its descendants
+            if ($element->element_type === 'FOLDER') {
+                $descendantIds = $this->getDescendantIds($element);
+                if (in_array($newParentId, $descendantIds)) {
+                    return response()->json([
+                        'message' => 'Cannot move a folder into itself or its descendants'
+                    ], 422);
+                }
+            }
+            
+            $element->id_parent = $newParentId;
+        }
+
         $element->last_edited = now();
         $element->save();
 
@@ -215,5 +289,18 @@ class ElementController extends Controller
             }
             $child->delete();
         }
+    }
+
+        // Helper function to get all descendant IDs of a folder
+    private function getDescendantIds(Element $folder)
+    {
+        $descendants = [];
+        foreach ($folder->children as $child) {
+            $descendants[] = $child->id_element;
+            if ($child->element_type === 'FOLDER') {
+                $descendants = array_merge($descendants, $this->getDescendantIds($child));
+            }
+        }
+        return $descendants;
     }
 }

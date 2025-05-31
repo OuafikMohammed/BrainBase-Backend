@@ -49,6 +49,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Element routes
     Route::apiResource('vaults.elements', ElementController::class)->shallow();
+    Route::put('/elements/{elementId}/parent', [ElementController::class, 'updateParent']);
     Route::put('elements/{elementId}/content', [ElementController::class, 'saveContent']);
     Route::post('/vaults/{vaultId}/search-tags', [ElementController::class, 'searchByTags'])->middleware('auth:sanctum');
     Route::post('/elements/{elementId}/restore-version', [ElementController::class, 'restoreVersion'])->middleware('auth:sanctum');
