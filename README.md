@@ -342,14 +342,24 @@ README.md
 
 ```mermaid
 flowchart LR
-  Client["Client (Web/Mobile)"] -->|HTTP JSON| API[API Gateway / Laravel Controllers]
-  API --> AuthService[JWT Auth (Middleware)]
-  API --> ArticlesSvc[Article Service / Repositories]
-  ArticlesSvc --> MySQL[(MySQL)]
-  API --> Storage[(File / S3)]
-  Workers[Queue Workers] --> ArticlesSvc
-  AuthService --> MySQL
-  note right of MySQL: Stores users, articles, versions,\ncategories, tags
+    Client["Client (Web/Mobile)"] -->|HTTP JSON| API["API Gateway / Laravel Controllers"]
+    API --> AuthService["JWT Auth (Middleware)"]
+    API --> ArticlesSvc["Article Service / Repositories"]
+    ArticlesSvc --> MySQL[("MySQL Database")]
+    API --> Storage[("File Storage / S3")]
+    Workers["Queue Workers"] --> ArticlesSvc
+    AuthService --> MySQL
+    
+    note["
+    <b>Database Schema:</b><br/>
+    • users<br/>
+    • articles<br/>
+    • article_versions<br/>
+    • categories<br/>
+    • tags
+    "]
+    
+    MySQL -.- note
 ```
 
 ---
