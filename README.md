@@ -1,66 +1,396 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# BrainBase-Backend 🚀
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+██████╗ ██████╗  █████╗ ██╗███╗   ██╗██████╗  █████╗ ███████╗███████╗
+██╔══██╗██╔══██╗██╔══██╗██║████╗  ██║██╔══██╗██╔══██╗██╔════╝██╔════╝
+██████╔╝██████╔╝███████║██║██╔██╗ ██║██████╔╝███████║███████╗█████╗  
+██╔══██╗██╔══██╗██╔══██║██║██║╚██╗██║██╔══██╗██╔══██║╚════██║██╔══╝  
+██████╔╝██║  ██║██║  ██║██║██║ ╚████║██████╔╝██║  ██║███████║███████╗
+╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝
+Knowledge Management System — Backend (Laravel)
 
-## About Laravel
+Tagline: Capture. Organize. Evolve knowledge. ✨
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+[![Build Status](https://github.com/OuafikMohammed/BrainBase-Backend/actions/workflows/ci.yml/badge.svg)](https://github.com/OuafikMohammed/BrainBase-Backend/actions)
+[![PHP](https://img.shields.io/badge/PHP-8.1%2B-8892BF.svg)](https://www.php.net/)
+[![Laravel](https://img.shields.io/badge/Laravel-10.x-red.svg)](https://laravel.com/)
+[![License](https://img.shields.io/github/license/OuafikMohammed/BrainBase-Backend.svg)](https://github.com/OuafikMohammed/BrainBase-Backend/blob/main/LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/OuafikMohammed/BrainBase-Backend?style=social)](https://github.com/OuafikMohammed/BrainBase-Backend/stargazers)
+[![Postman Collection](https://img.shields.io/badge/Postman-Collection-orange)](https://github.com/OuafikMohammed/BrainBase-Backend/blob/main/postman_collection.json)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+Table of Contents
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Tech Stack](#tech-stack)
+- [API Documentation](#api-documentation)
+- [Demo API Call (curl)](#demo-api-call-curl)
+- [Installation](#installation-guide)
+- [Configuration](#configuration)
+- [Running the Server](#running-the-server)
+- [Testing](#testing)
+- [Database Schema (Simplified)](#database-schema-simplified)
+- [Folder Structure](#folder-structure)
+- [Contributing](#contributing-guidelines)
+- [License](#license)
+- [Connect / Contact](#connectcontact)
+- [Support](#support)
+- [Built With](#built-with)
+- [Architecture Diagram](#architecture-diagram)
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+---
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+## Overview
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+BrainBase-Backend is the RESTful backend for BrainBase — a lightweight, versioned Knowledge Management System built with Laravel 10.x and PHP 8.1+. It provides secure JWT-authenticated APIs to manage users, knowledge articles, categories, and article versions so teams can capture and evolve organizational knowledge.
 
-## Laravel Sponsors
+---
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## Key Features ✨
 
-### Premium Partners
+- 🔐 JWT Authentication (register, login, refresh)
+- 📝 CRUD for knowledge articles with version control
+- 🔎 Full-text search & filters (title, content, category, tags)
+- 🗂️ Categorization & tagging
+- 🧾 Article versioning & history
+- 📄 RESTful API (JSON)
+- 🧪 Unit & feature tests
+- ♻️ Soft deletes & audit-friendly design
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+---
 
-## Contributing
+## Tech Stack 🛠️
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+| Layer | Technology |
+|---|---|
+| Backend | PHP 8.1+, Laravel 10.x |
+| Auth | JWT (laravel/jwt-auth or tymon/jwt-auth) |
+| Database | MySQL 8.0+ |
+| API | REST (JSON) |
+| Testing | PHPUnit, Laravel Test Utilities |
+| Other | Composer, GitHub Actions |
 
-## Code of Conduct
+Built with best practices in mind: API-first, stateless auth, and clean separation of concerns.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+---
 
-## Security Vulnerabilities
+## API Documentation
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Base URL: `https://your-domain.com/api` (or local `http://localhost:8000/api`)
 
-## License
+Authentication: Bearer Token (JWT) — attach `Authorization: Bearer {token}` to protected routes.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Endpoints summary:
+
+| Method | Endpoint | Auth | Description |
+|---:|---|:---:|---|
+| POST | /auth/register | No | Register new user |
+| POST | /auth/login | No | Login and receive JWT |
+| POST | /auth/refresh | Yes | Refresh token |
+| GET | /articles | No* | Get list of articles (public or filtered) |
+| POST | /articles | Yes | Create an article |
+| GET | /articles/{id} | No* | Get article (latest version) |
+| PUT | /articles/{id} | Yes | Update article (creates new version) |
+| DELETE | /articles/{id} | Yes | Soft-delete article |
+| GET | /articles/{id}/versions | Yes | List article versions |
+| GET | /categories | No | List categories |
+| POST | /categories | Yes | Create category |
+| GET | /search?q=term | No | Search articles (title/content) |
+
+*Public access to reading may be configured — by default read endpoints are public.
+
+Detailed example: Create article
+
+Request:
+POST /api/articles
+Headers:
+- Authorization: Bearer {token}
+- Content-Type: application/json
+
+Body:
+```json
+{
+  "title": "How to run BrainBase locally",
+  "content": "Step-by-step instructions...",
+  "category_id": 2,
+  "tags": ["setup", "local"]
+}
+```
+
+Success response (201):
+```json
+{
+  "id": 42,
+  "title": "How to run BrainBase locally",
+  "excerpt": "Step-by-step instructions...",
+  "author_id": 1,
+  "category": {
+    "id": 2,
+    "name": "Guides"
+  },
+  "tags": ["setup", "local"],
+  "created_at": "2026-03-10T12:01:02Z",
+  "version": 1
+}
+```
+
+---
+
+## Demo API Call (curl) 🧪
+
+Register:
+```bash
+curl -X POST "http://localhost:8000/api/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Alice","email":"alice@example.com","password":"secret","password_confirmation":"secret"}'
+```
+
+Login:
+```bash
+curl -X POST "http://localhost:8000/api/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alice@example.com","password":"secret"}'
+```
+
+Get articles (public):
+```bash
+curl "http://localhost:8000/api/articles"
+```
+
+Create article (requires token):
+```bash
+curl -X POST "http://localhost:8000/api/articles" \
+  -H "Authorization: Bearer <JWT_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Quick Tips","content":"Helpful tips...","category_id":1}'
+```
+
+---
+
+## Postman Collection
+
+You can import the Postman collection (if present) here:
+- Postman collection: https://github.com/OuafikMohammed/BrainBase-Backend/blob/main/postman_collection.json
+- (Badge above links to the file if you add the collection to the repo.)
+
+---
+
+## Installation Guide (Local) ⚙️
+
+Quick start — run these commands in your terminal:
+
+```bash
+# Clone
+git clone https://github.com/OuafikMohammed/BrainBase-Backend.git
+cd BrainBase-Backend
+
+# Install PHP dependencies
+composer install
+
+# Copy env and generate app key
+cp .env.example .env
+php artisan key:generate
+
+# Configure .env (see Configuration section)
+
+# Run migrations & seeders
+php artisan migrate --seed
+
+# Run dev server
+php artisan serve --host=127.0.0.1 --port=8000
+```
+
+Quick start command:
+```bash
+composer install && cp .env.example .env && php artisan key:generate && php artisan migrate --seed && php artisan serve
+```
+
+---
+
+## Configuration (.env) 🔧
+
+Important environment variables (example names):
+
+- APP_NAME=BrainBase
+- APP_ENV=local
+- APP_KEY=base64:...
+- APP_URL=http://localhost
+
+- DB_CONNECTION=mysql
+- DB_HOST=127.0.0.1
+- DB_PORT=3306
+- DB_DATABASE=brainbase
+- DB_USERNAME=root
+- DB_PASSWORD=
+
+- BROADCAST_DRIVER=log
+- CACHE_DRIVER=file
+- QUEUE_CONNECTION=sync
+- SESSION_DRIVER=file
+
+- JWT_SECRET=your_jwt_secret_here
+
+- MAIL_MAILER=smtp (configure for notifications)
+
+Tip: store JWT_SECRET safely and rotate when needed. Use Laravel's config caching in production: `php artisan config:cache`.
+
+---
+
+## Running the Server 🏃
+
+Development server:
+```bash
+php artisan serve --host=0.0.0.0 --port=8000
+```
+
+Queue worker (if using queues):
+```bash
+php artisan queue:work
+```
+
+Scheduler (recommended for cron jobs):
+Add to crontab:
+```cron
+* * * * * cd /path-to-project && php artisan schedule:run >> /dev/null 2>&1
+```
+
+---
+
+## Testing ✅
+
+Run the test suite:
+
+```bash
+# Run Laravel/PHPUnit tests
+php artisan test
+
+# or using vendor binary
+vendor/bin/phpunit
+```
+
+Write tests under `tests/Feature` and `tests/Unit`. Aim for deterministic tests and avoid hitting external services in CI.
+
+---
+
+## Database Schema (Simplified)
+
+Tables and important columns:
+
+- users
+  - id, name, email (unique), password, role, created_at, updated_at
+
+- categories
+  - id, name, slug, created_at, updated_at
+
+- articles
+  - id, author_id (FK users), current_version_id, title, excerpt, visibility, created_at, updated_at, deleted_at (soft deletes)
+
+- article_versions
+  - id, article_id, version_number, content, changelog, created_by, created_at
+
+- article_category (pivot)
+  - article_id, category_id
+
+- tags & article_tag (optional)
+  - tags: id, name, slug
+  - article_tag: article_id, tag_id
+
+Indexes:
+- Fulltext index on articles.title, article_versions.content for search
+- FK indexes on author_id, article_id, category_id
+
+---
+
+## Folder Structure 📁
+
+```text
+app/
+  Http/
+    Controllers/
+      AuthController.php
+      ArticleController.php
+      CategoryController.php
+  Models/
+    Article.php
+    ArticleVersion.php
+    Category.php
+    User.php
+  Policies/
+  Requests/
+config/
+database/
+  migrations/
+  seeders/
+resources/
+  lang/
+routes/
+  api.php
+tests/
+  Feature/
+  Unit/
+.postman_collection.json
+README.md
+```
+
+---
+
+## Architecture Diagram (Mermaid) 🧭
+
+```mermaid
+flowchart LR
+  Client["Client (Web/Mobile)"] -->|HTTP JSON| API[API Gateway / Laravel Controllers]
+  API --> AuthService[JWT Auth (Middleware)]
+  API --> ArticlesSvc[Article Service / Repositories]
+  ArticlesSvc --> MySQL[(MySQL)]
+  API --> Storage[(File / S3)]
+  Workers[Queue Workers] --> ArticlesSvc
+  AuthService --> MySQL
+  note right of MySQL: Stores users, articles, versions,\ncategories, tags
+```
+
+---
+
+## Contributing Guidelines 🤝
+
+We're excited to have contributors! Please:
+
+1. Fork the repo and create a branch: `feature/your-feature-name`
+2. Write tests for new features/bugfixes.
+3. Follow PSR-12 coding style.
+4. Run `composer install` and `php artisan test` before submitting.
+5. Open a PR with a clear description and link to related issues.
+
+Code of conduct: Be respectful and constructive. We follow the standard community guidelines.
+
+---
+
+
+## Connect / Contact
+
+Maintainer: OuafikMohammed  
+GitHub: https://github.com/OuafikMohammed
+
+Have questions or need help? Open an issue in this repo.
+
+---
+
+## Support ⭐
+
+If BrainBase-Backend helps your team, please give this repo a star — it really helps with visibility and future contributions!
+
+[Click to Star ⭐](https://github.com/OuafikMohammed/BrainBase-Backend/stargazers)
+
+---
+
+## Built With 🏗️
+
+[![PHP](https://img.shields.io/badge/PHP-8.1%2B-8892BF.svg)](https://www.php.net/)
+[![Laravel](https://img.shields.io/badge/Laravel-10.x-red.svg)](https://laravel.com/)
+[![MySQL](https://img.shields.io/badge/MySQL-8.0-blue.svg)](https://www.mysql.com/)
+[![JWT](https://img.shields.io/badge/JWT-Auth-yellow.svg)](https://jwt.io/)
+
+---
+
+Thank you for checking out BrainBase-Backend! Contributions, feedback, and stars are welcome — let's build something that helps teams capture and evolve knowledge. 💡
